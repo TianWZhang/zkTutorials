@@ -78,7 +78,10 @@ describe('Custom Tests', function () {
 
     // Alice deposits into tornado pool
     const aliceDepositAmount = utils.parseEther('0.1')
-    const aliceDepositUtxo = new Utxo({ amount: aliceDepositAmount, keypair: aliceKeypair })
+    const aliceDepositUtxo = new Utxo({
+      amount: aliceDepositAmount,
+      keypair: aliceKeypair,
+    })
     const { args, extData } = await prepareTransaction({
       tornadoPool,
       outputs: [aliceDepositUtxo],
@@ -138,23 +141,23 @@ describe('Custom Tests', function () {
     const aliceKeypair = new Keypair()
     const bobKeypair = new Keypair()
 
-    const initialTornadoPoolBalance = await token.balanceOf(tornadoPool.address)
-    const initialOmniBridgeBalance = await token.balanceOf(omniBridge.address)
-    let omniBridgeBalance
+    const initialTornadoPoolBalance = await token.balanceOf(tornadoPool.address) //0
+    const initialOmniBridgeBalance = await token.balanceOf(omniBridge.address) //0
 
     // Alice deposits 0.13 ETH in L1 into tornado pool
     const aliceDepositAmount = utils.parseEther('0.13')
-    const aliceDepositUtxo = new Utxo({ amount: aliceDepositAmount, keypair: aliceKeypair })
+    const aliceDepositUtxo = new Utxo({
+      amount: aliceDepositAmount,
+      keypair: aliceKeypair,
+    })
     const { args, extData } = await prepareTransaction({
       tornadoPool,
       outputs: [aliceDepositUtxo],
     })
-
     const onTokenBridgedData = encodeDataForBridge({
       proof: args,
       extData,
     })
-
     const onTokenBridgedTx = await tornadoPool.populateTransaction.onTokenBridged(
       token.address,
       aliceDepositUtxo.amount,
@@ -163,26 +166,26 @@ describe('Custom Tests', function () {
     // emulating bridge. first it sends tokens to omnibridge mock then it sends to the pool
     await token.transfer(omniBridge.address, aliceDepositAmount)
     const transferTx = await token.populateTransaction.transfer(tornadoPool.address, aliceDepositAmount)
-
     await omniBridge.execute([
       { who: token.address, callData: transferTx.data }, // send tokens to pool
       { who: tornadoPool.address, callData: onTokenBridgedTx.data }, // call onTokenBridgedTx
     ])
 
-    console.log(`before sending, omniBridgeBalance: ${await token.balanceOf(omniBridge.address)}`)
-
     //Alice sends 0.06 ETH to Bob in L2
     const bobSendAmount = utils.parseEther('0.06')
-    const bobSendUtxo = new Utxo({ amount: bobSendAmount, keypair: bobKeypair })
+    const bobSendUtxo = new Utxo({
+      amount: bobSendAmount,
+      keypair: bobKeypair,
+    })
     const aliceChangeUtxo1 = new Utxo({
       amount: aliceDepositAmount.sub(bobSendAmount),
       keypair: aliceDepositUtxo.keypair,
     })
-    await transaction({ tornadoPool, inputs: [aliceDepositUtxo], outputs: [bobSendUtxo, aliceChangeUtxo1] })
-
-    console.log(
-      `after sending, before withdrawing, omniBridgeBalance: ${await token.balanceOf(omniBridge.address)}`,
-    )
+    await transaction({
+      tornadoPool,
+      inputs: [aliceDepositUtxo],
+      outputs: [bobSendUtxo, aliceChangeUtxo1],
+    })
 
     // Bob withdraws all his funds in L2
     // Bob parses chain to detect incoming funds
@@ -200,7 +203,10 @@ describe('Custom Tests', function () {
 
     const bobWithdrawAmount = utils.parseEther('0.06')
     const bobEthAddress = '0xfeDE000000000000000000000000000000000000'
-    const bobChangeUtxo = new Utxo({ amount: bobSendAmount.sub(bobWithdrawAmount), keypair: bobKeypair })
+    const bobChangeUtxo = new Utxo({
+      amount: bobSendAmount.sub(bobWithdrawAmount),
+      keypair: bobKeypair,
+    })
     await transaction({
       tornadoPool,
       inputs: [bobReceiveUtxo],
@@ -211,7 +217,6 @@ describe('Custom Tests', function () {
 
     // Alice withdraws all her remaining funds in L1
     const aliceEthAddress = '0xDeaD00000000000000000000000000000000BEEf'
-    console.log(`before withdrawing, tarnadoBalance: ${await token.balanceOf(tornadoPool.address)}`)
     const aliceChangeUtxo2 = new Utxo({
       amount: utils.parseEther('0'),
       keypair: aliceKeypair,
@@ -225,19 +230,18 @@ describe('Custom Tests', function () {
     })
 
     // assert all relevant balances are correct
-    const aliceBalance = await token.balanceOf(aliceEthAddress)
-    expect(aliceBalance).to.be.equal(0)
-
     const bobBalance = await token.balanceOf(bobEthAddress)
     expect(bobBalance).to.be.equal(bobWithdrawAmount)
 
-    omniBridgeBalance = await token.balanceOf(omniBridge.address)
-    console.log(`after withdrawing, omniBridgeBalance: ${omniBridgeBalance}`)
-    expect(omniBridgeBalance).to.be.equal(initialOmniBridgeBalance.add(aliceDepositAmount).sub(bobSendAmount))
-
-    // Alice should have 0 ETH balance in the tornado pool
+    // Alice should have 0 ETH balance in the tornado pool, 0.7 ETH balance in the omniBridge
     const tornadoPoolBalance = await token.balanceOf(tornadoPool.address)
     expect(tornadoPoolBalance).to.be.equal(initialTornadoPoolBalance)
+
+    const omniBridgeBalance = await token.balanceOf(omniBridge.address)
+    expect(omniBridgeBalance).to.be.equal(initialOmniBridgeBalance.add(aliceDepositAmount).sub(bobSendAmount))
+
+    const aliceBalance = await token.balanceOf(aliceEthAddress)
+    expect(aliceBalance).to.be.equal(0)
   })
 })
 

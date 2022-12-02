@@ -1,4 +1,0 @@
-[submodule "Part2"]
-	path = Part2
-	url = https://github.com/zku-cohort-3/tornado-nova.git
-	branch = assignment
